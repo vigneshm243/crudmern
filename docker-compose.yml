@@ -1,0 +1,68 @@
+version: "3.7"
+
+services:
+  db:
+    container_name: mongo-dev
+    image: mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=nodecrud
+    networks: 
+      - mongo-compose-network
+    ports:
+      - '27017:27017'
+    command: [ --auth]
+    volumes: 
+      - ./data:/data/db
+  
+  mongo-express:
+    container_name: mongo-express
+    image: mongo-express
+    depends_on:
+      - db
+    networks: 
+      - mongo-compose-network
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo-dev     
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=${MONGO_ROOT_USER}
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=${MONGO_ROOT_PASSWORD}
+      - ME_CONFIG_BASICAUTH_USERNAME=${MONGOEXPRESS_LOGIN}
+      - ME_CONFIG_BASICAUTH_PASSWORD=${MONGOEXPRESS_PASSWORD}
+    ports:
+      - '8081:8081'
+    volumes: 
+      - ./data:/data/db      
+  nodeapp:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./nodeapp
+    depends_on:
+      - db
+    networks: 
+      - mongo-compose-network
+    volumes:
+      - /app/node_modules
+      - ./nodeapp:/app
+    environment:
+      - PORT=8083
+      - MONGO_URI='mongodb://devroot:devroot@db:27017'
+    ports:
+      - '8082:8082'
+      - '8083:8083'
+  reactapp:
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./reactapp
+    depends_on:
+      - nodeapp
+    networks: 
+      - mongo-compose-network
+    volumes:
+      - /app/node_modules
+      - ./reactapp:/app
+    ports:
+      - '3000:3000'
+networks:
+  mongo-compose-network:
+    driver: bridge
